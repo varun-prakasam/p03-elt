@@ -1,9 +1,13 @@
-# CI for p03-elt.
+# CI/CD for p03-elt.
 #
-# Both jobs run without any GCP credential, which is the point — they can run on a fork, on a pull
-# request from anyone, and before the repository has a Workload Identity binding at all. Anything
-# that needs to reach BigQuery (dbt build, dbt source freshness) belongs in the nightly CronJob,
-# where the cluster already provides an identity, not here.
+# The two test jobs run without any GCP credential, which is the point — they run on a fork, on a
+# pull request from anyone, and would run before this repository had a Workload Identity binding at
+# all. Anything that needs to reach BigQuery (dbt build, dbt source freshness) belongs in the
+# nightly CronJob, where the cluster already provides an identity.
+#
+# The build job is the exception and is gated on main. It authenticates by exchanging the workflow's
+# own OIDC token for a short-lived GCP one, so there is no key file and no long-lived repository
+# secret — the same rule the rest of the platform follows.
 
 name: ci
 
@@ -18,8 +22,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# id-token is what lets the workflow request an OIDC token to exchange for GCP credentials. Declared
+# at the top level so both halves are visible together; the build job is the only consumer.
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   elt:
@@ -80,3 +87,43 @@ jobs:
         env:
           DBT_PROFILES_DIR: .
         run: dbt parse --no-partial-parse
+
+  images:
+    name: build images
+    runs-on: ubuntu-latest
+    # Only on main, and only once the tests have passed. A broken image that nothing can schedule is
+    # still a broken image in the registry, and the CronJob pulls :latest on every run.
+    needs: [elt, dbt]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      # No key file. The workflow presents its own OIDC token, Google exchanges it for a short-lived
+      # credential, and the binding that permits the exchange names this repository — so the token
+      # is worthless anywhere else, which a downloadable key never is.
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build the loader image
+        # The CronJob's manifest pins :latest with imagePullPolicy Always, so pushing here is the
+        # whole deployment — ArgoCD never sees a change and does not need to.
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild/elt.yaml \
+            --substitutions=_TAG=${{ github.sha }} \
+            --project=${{ vars.GCP_PROJECT_ID }} .
+
+      - name: Build and deploy the dashboard
+        # Evidence recompiles against whatever the marts hold right now, so this both ships the code
+        # change and refreshes the numbers. The config's final step re-fetches every page
+        # anonymously and fails the build on anything but a 200.
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild/evidence.yaml \
+            --substitutions=_TAG=${{ github.sha }} \
+            --project=${{ vars.GCP_PROJECT_ID }} .

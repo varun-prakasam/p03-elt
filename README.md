@@ -128,19 +128,31 @@ cluster on a missing role. Verify in-cluster before calling anything done.
 
 ## Deploying
 
-No GitHub remote yet, so images build from a local tarball and manifests are applied by hand:
+Pushing to `main` is the deployment. CI runs the tests, then builds both images through Cloud Build
+and redeploys the dashboard; the platform's ArgoCD Application syncs `k8s/overlays/prod` from this
+repository with `selfHeal` and `prune` enabled.
+
+CI authenticates by exchanging the workflow's own OIDC token for a short-lived GCP credential. There
+is no key file and no long-lived repository secret — `WIF_PROVIDER` and `WIF_SERVICE_ACCOUNT` are
+repository *variables* because they are identifiers, not secrets, and the binding that permits the
+exchange names this repository, so the token is worthless anywhere else.
+
+The CronJob pins `:latest` with `imagePullPolicy: Always`, so a new image is picked up on the next
+scheduled run without any manifest change. That is why a code change to the loader does not show up
+as an ArgoCD diff, and it is deliberate: the manifest describes how to run the pipeline, not which
+build of it is current.
+
+`k8s/dev/` sits outside the overlay so ArgoCD never manages it.
+
+To build or apply by hand — useful when iterating faster than a push cycle:
 
 ```
 gcloud builds submit --config=cloudbuild/elt.yaml --substitutions=_TAG=dev .
 kubectl apply --server-side --field-manager=argocd-controller -k k8s/overlays/prod
 ```
 
-The `--field-manager=argocd-controller` flag matters. When this repo is eventually pushed, the
-platform's ArgoCD Application takes over `k8s/overlays/prod` with `selfHeal` and `prune` enabled.
-Applying under ArgoCD's field manager now means field ownership already matches and the handover
-is silent instead of a conflict.
-
-`k8s/dev/` is deliberately outside the overlay so ArgoCD never manages it.
+Use ArgoCD's field manager even by hand. Server-side apply tracks which manager owns each field, and
+applying as anyone else hands ArgoCD a conflict to resolve on its next sync.
 
 ### The dashboard
 
