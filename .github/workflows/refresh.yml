@@ -1,0 +1,58 @@
+# Nightly dashboard refresh.
+#
+# The site is static: Evidence materialises every source query to parquet at build time and the
+# browser runs the page queries in DuckDB-WASM. That is what makes it cost nothing to serve and
+# scale to zero, and it is also why it does not update on its own — the numbers are as old as the
+# last build. This workflow is what keeps them current.
+#
+# Deliberately not Cloud Scheduler. The plan called for Scheduler triggering Cloud Build, which was
+# the right design when there was no repository: the Cloud Build REST API takes inline steps, so
+# running cloudbuild/evidence.yaml on a schedule meant either a build that shells out to another
+# build, or the same eight steps transcribed into Terraform in the platform repo. A repository-
+# connected trigger removes that, but needs the Cloud Build GitHub App installed through an
+# interactive OAuth flow. A scheduled workflow needs neither, reuses the Workload Identity
+# federation that already works, and keeps the schedule next to the thing it rebuilds.
+
+name: refresh
+
+on:
+  schedule:
+    # 12:00 UTC, three hours after the pipeline's 09:00 CronJob. Far enough behind that a slow run
+    # or a retry has finished; near enough that the dashboard is current by the working day.
+    # GitHub queues scheduled runs under load, so treat this as "about noon", not noon.
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+# A manual run during a scheduled one would race two deploys onto the same service.
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  dashboard:
+    name: rebuild dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Rebuild against the current marts
+        # No code has changed, so this is purely a data refresh — `evidence sources` re-queries
+        # BigQuery and the site is rebuilt around the new parquet. The config's last step fetches
+        # every page anonymously and fails on anything but a 200, so a broken refresh does not
+        # quietly replace a working dashboard.
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild/evidence.yaml \
+            --substitutions=_TAG=nightly-$(date -u +%Y%m%d) \
+            --project=${{ vars.GCP_PROJECT_ID }} .

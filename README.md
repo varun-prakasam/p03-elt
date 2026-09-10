@@ -182,14 +182,18 @@ The site is only as fresh as its last build, which is why the page header reads 
 than a build timestamp — a frozen pipeline shows up as a warning banner instead of stale numbers
 nobody questions.
 
-**There is deliberately no nightly rebuild yet.** The Cloud Build REST API takes inline steps; the
-"run this config file from this source" indirection lives in build *triggers*, which need a
-connected repository, and in the `gcloud` client. With no GitHub remote the only ways to schedule
-this are a build that shells out to another build, or a copy of these eight steps transcribed into
-Terraform in the platform repo — one adds a layer to debug through, the other guarantees the two
-definitions drift. Both get deleted at the GitHub cutover, when a repo-connected trigger plus
-`Scheduler → triggers.run` is three resources and no nesting. Until then the rebuild is the manual
-command above, and the freshness banner is what keeps a stale dashboard honest.
+**The nightly rebuild is a scheduled workflow, not Cloud Scheduler.** `.github/workflows/refresh.yml`
+runs at 12:00 UTC, three hours behind the pipeline's CronJob. The plan originally called for
+Scheduler triggering Cloud Build, which was right when there was no repository: the Cloud Build REST
+API takes inline steps, so scheduling this config meant either a build that shells out to another
+build or the same eight steps transcribed into Terraform in the platform repo. A repository-connected
+trigger removes that, but needs the Cloud Build GitHub App installed through an interactive OAuth
+flow. A scheduled workflow needs neither, reuses the federation that already works for CI, and keeps
+the schedule beside the thing it rebuilds.
+
+The freshness banner still matters. A rebuild that fails leaves the previous revision serving, and
+the banner reads `_dlt_loads` rather than a build timestamp — so a frozen pipeline shows as a warning
+rather than as numbers nobody questions.
 
 ## Layout
 
