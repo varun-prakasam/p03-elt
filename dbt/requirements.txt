@@ -1,0 +1,6 @@
+# Installed into /opt/dbt-venv, isolated from dlt.
+dbt-core>=1.9,<1.10
+dbt-bigquery>=1.9,<1.10
+
+# Used to publish `dbt docs generate` output to the artifacts bucket.
+google-cloud-storage>=2.18,<3

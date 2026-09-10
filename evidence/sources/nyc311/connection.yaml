@@ -1,0 +1,15 @@
+name: nyc311
+type: bigquery
+options:
+  project_id: varun-data-engineering
+
+  # The regional location, not the multi-region 'US'. Every p03 dataset lives in us-central1, and a
+  # BigQuery job submitted against the wrong location does not fall back — it reports the dataset
+  # as not found, which reads like a permissions problem and is not one.
+  location: us-central1
+
+  # 'gcloud-cli' is a misleading name: the connector simply passes the project through and lets the
+  # Google Node client resolve Application Default Credentials. In Cloud Build that is the build
+  # service account, so the site compiles with no key file anywhere — which is the whole point.
+  # The alternative, 'service-account', wants client_email and private_key inline.
+  authenticator: gcloud-cli

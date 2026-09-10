@@ -1,0 +1,23 @@
+p03_elt:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+
+      # Application Default Credentials. Under Workload Identity this resolves to wl-p03-elt@…
+      # with no key file, which is the platform's hard rule.
+      method: oauth
+
+      project: "{{ env_var('GCP_PROJECT_ID', 'varun-data-engineering') }}"
+      location: "{{ env_var('BQ_LOCATION', 'us-central1') }}"
+
+      # Overridden per-model by the +schema config; this is only the fallback.
+      dataset: p03_staging
+
+      threads: 4
+      priority: interactive
+      job_retries: 2
+
+      # The single most effective guard against a runaway bill. A model that would scan more than
+      # 20 GB fails loudly instead of quietly costing money.
+      maximum_bytes_billed: 21474836480

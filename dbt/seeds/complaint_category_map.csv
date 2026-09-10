@@ -1,0 +1,206 @@
+complaint_type,service_category,service_subcategory,is_weather_sensitive
+Consumer Complaint,Consumer & Business,Consumer Protection,false
+FHV Licensee Complaint,Consumer & Business,For-Hire Vehicles,false
+For Hire Vehicle Complaint,Consumer & Business,For-Hire Vehicles,false
+For Hire Vehicle Report,Consumer & Business,For-Hire Vehicles,false
+Found Property,Consumer & Business,Lost & Found,false
+Lost Property,Consumer & Business,Lost & Found,false
+Vendor Enforcement,Consumer & Business,Street Vending,false
+Dispatched Taxi Complaint,Consumer & Business,Taxi,false
+Green Taxi Complaint,Consumer & Business,Taxi,false
+Green Taxi Report,Consumer & Business,Taxi,false
+Taxi Complaint,Consumer & Business,Taxi,false
+Taxi Compliment,Consumer & Business,Taxi,false
+Taxi Licensee Complaint,Consumer & Business,Taxi,false
+Taxi Report,Consumer & Business,Taxi,false
+Air Quality,Health & Hygiene,Air Quality,true
+Indoor Air Quality,Health & Hygiene,Air Quality,false
+Animal Facility - No Permit,Health & Hygiene,Animals,false
+Animal-Abuse,Health & Hygiene,Animals,false
+Illegal Animal Kept as Pet,Health & Hygiene,Animals,false
+Illegal Animal Sold,Health & Hygiene,Animals,false
+Pet Sale,Health & Hygiene,Animals,false
+Pet Shop,Health & Hygiene,Animals,false
+Trapping Pigeon,Health & Hygiene,Animals,false
+Unleashed Dog,Health & Hygiene,Animals,false
+Unsanitary Animal Facility,Health & Hygiene,Animals,false
+Unsanitary Animal Pvt Property,Health & Hygiene,Animals,false
+Beach/Pool/Sauna Complaint,Health & Hygiene,Facility Inspection,true
+Cooling Tower,Health & Hygiene,Facility Inspection,true
+Day Care,Health & Hygiene,Facility Inspection,false
+Lifeguard,Health & Hygiene,Facility Inspection,true
+Tanning,Health & Hygiene,Facility Inspection,false
+Tattooing,Health & Hygiene,Facility Inspection,false
+X-Ray Machine/Equipment,Health & Hygiene,Facility Inspection,false
+Calorie Labeling,Health & Hygiene,Food Safety,false
+Food Establishment,Health & Hygiene,Food Safety,false
+Food Poisoning,Health & Hygiene,Food Safety,false
+Mobile Food Vendor,Health & Hygiene,Food Safety,false
+ASBESTOS,Health & Hygiene,Hazardous Materials,false
+Asbestos,Health & Hygiene,Hazardous Materials,false
+Construction Lead Dust,Health & Hygiene,Hazardous Materials,false
+Hazardous Material,Health & Hygiene,Hazardous Materials,false
+Hazardous Materials,Health & Hygiene,Hazardous Materials,false
+Industrial Waste,Health & Hygiene,Hazardous Materials,false
+Lead,Health & Hygiene,Hazardous Materials,false
+Oil or Gas Spill,Health & Hygiene,Hazardous Materials,false
+Radioactive Material,Health & Hygiene,Hazardous Materials,false
+Harboring Bees/Wasps,Health & Hygiene,Pests,true
+Mosquitoes,Health & Hygiene,Pests,true
+Poison Ivy,Health & Hygiene,Pests,true
+Rodent,Health & Hygiene,Pests,true
+Unsanitary Pigeon Condition,Health & Hygiene,Pests,false
+Cannabis Retailer,Health & Hygiene,Tobacco & Cannabis,false
+Smoking,Health & Hygiene,Tobacco & Cannabis,false
+Smoking or Vaping,Health & Hygiene,Tobacco & Cannabis,false
+Tobacco or Non-Tobacco Sale,Health & Hygiene,Tobacco & Cannabis,false
+Encampment,Homelessness & Social Services,Encampment,true
+Homeless Person Assistance,Homelessness & Social Services,Outreach,true
+APPLIANCE,Housing & Buildings,Appliances,false
+Building Condition,Housing & Buildings,Building Envelope,false
+OUTSIDE BUILDING,Housing & Buildings,Building Envelope,true
+Building/Use,Housing & Buildings,Construction,false
+General Construction/Plumbing,Housing & Buildings,Construction,false
+ELECTRIC,Housing & Buildings,Electrical,false
+Electrical,Housing & Buildings,Electrical,false
+ELEVATOR,Housing & Buildings,Elevator,false
+Elevator,Housing & Buildings,Elevator,false
+GENERAL,Housing & Buildings,General Housing,false
+Boilers,Housing & Buildings,Heat & Hot Water,true
+HEAT/HOT WATER,Housing & Buildings,Heat & Hot Water,true
+Non-Residential Heat,Housing & Buildings,Heat & Hot Water,true
+SAFETY,Housing & Buildings,Housing Safety,false
+Window Guard,Housing & Buildings,Housing Safety,false
+DOOR/WINDOW,Housing & Buildings,Interior Fabric,false
+FLOORING/STAIRS,Housing & Buildings,Interior Fabric,false
+PAINT/PLASTER,Housing & Buildings,Interior Fabric,false
+Peeling Paint,Housing & Buildings,Interior Fabric,false
+PLUMBING,Housing & Buildings,Plumbing,false
+Plumbing,Housing & Buildings,Plumbing,false
+Mold,Housing & Buildings,Unsanitary Conditions,true
+UNSANITARY CONDITION,Housing & Buildings,Unsanitary Conditions,false
+WATER LEAK,Housing & Buildings,Water Leak,true
+Noise - Commercial,Noise,Noise - Commercial,false
+Noise,Noise,Noise - General,false
+Noise - Helicopter,Noise,Noise - Helicopter,false
+Noise - House of Worship,Noise,Noise - House Of Worship,false
+Noise - Park,Noise,Noise - Park,false
+Noise - Residential,Noise,Noise - Residential,false
+Noise - Street/Sidewalk,Noise,Noise - Street/Sidewalk,false
+Noise - Vehicle,Noise,Noise - Vehicle,false
+AHV Inspection Unit,Other & Administrative,Agency Conduct,false
+Borough Office,Other & Administrative,Agency Conduct,false
+Building Marshal's Office,Other & Administrative,Agency Conduct,false
+Building Marshals office,Other & Administrative,Agency Conduct,false
+DSNY Internal,Other & Administrative,Agency Conduct,false
+Dept of Investigations,Other & Administrative,Agency Conduct,false
+Investigations and Discipline (IAD),Other & Administrative,Agency Conduct,false
+Sanitation Worker or Vehicle Complaint,Other & Administrative,Agency Conduct,false
+Special Operations,Other & Administrative,Agency Conduct,false
+Special Natural Area District (SNAD),Other & Administrative,Land Use,false
+Bench,Other & Administrative,Public Amenities,false
+Leaning Bar,Other & Administrative,Public Amenities,false
+Public Toilet,Other & Administrative,Public Amenities,false
+Wayfinding,Other & Administrative,Public Amenities,false
+LinkNYC,Other & Administrative,Public Technology,false
+Public Payphone Complaint,Other & Administrative,Public Technology,false
+School Maintenance,Other & Administrative,Schools,false
+Incorrect Data,Other & Administrative,Uncategorised,false
+SNW,Other & Administrative,Uncategorised,false
+Unspecified,Other & Administrative,Uncategorised,false
+Animal in a Park,Parks & Trees,Park Conditions,false
+Maintenance or Facility,Parks & Trees,Park Conditions,false
+Violation of Park Rules,Parks & Trees,Park Conditions,false
+Damaged Tree,Parks & Trees,Tree Condition,true
+Dead/Dying Tree,Parks & Trees,Tree Condition,true
+Illegal Tree Damage,Parks & Trees,Tree Condition,false
+Overgrown Tree/Branches,Parks & Trees,Tree Condition,true
+Uprooted Stump,Parks & Trees,Tree Condition,true
+Wood Pile Remaining,Parks & Trees,Tree Condition,false
+New Tree Request,Parks & Trees,Tree Requests,false
+Root/Sewer/Sidewalk Condition,Parks & Trees,Tree Roots,false
+BEST/Site Safety,Public Safety & Enforcement,Construction Safety,false
+Construction Safety Enforcement,Public Safety & Enforcement,Construction Safety,false
+Cranes and Derricks,Public Safety & Enforcement,Construction Safety,false
+Emergency Response Team (ERT),Public Safety & Enforcement,Construction Safety,false
+Facade Insp Safety Pgm,Public Safety & Enforcement,Construction Safety,false
+Real Time Enforcement,Public Safety & Enforcement,Construction Safety,false
+Special Projects Inspection Team (SPIT),Public Safety & Enforcement,Construction Safety,false
+Drinking,Public Safety & Enforcement,Drugs & Alcohol,false
+Drug Activity,Public Safety & Enforcement,Drugs & Alcohol,false
+Non-Emergency Police Matter,Public Safety & Enforcement,Other Police,false
+Disorderly Youth,Public Safety & Enforcement,Public Order,false
+Illegal Fireworks,Public Safety & Enforcement,Public Order,true
+Panhandling,Public Safety & Enforcement,Public Order,false
+Safety,Public Safety & Enforcement,Public Order,false
+Squeegee,Public Safety & Enforcement,Public Order,false
+Urinating in Public,Public Safety & Enforcement,Public Order,false
+Commercial Disposal Complaint,Sanitation & Cleanliness,Collection,false
+Dumpster Complaint,Sanitation & Cleanliness,Collection,false
+Institution Disposal Complaint,Sanitation & Cleanliness,Collection,false
+Missed Collection,Sanitation & Cleanliness,Collection,true
+Residential Disposal Complaint,Sanitation & Cleanliness,Collection,false
+Transfer Station Complaint,Sanitation & Cleanliness,Collection,false
+Dead Animal,Sanitation & Cleanliness,Dead Animal,false
+Dirty Condition,Sanitation & Cleanliness,Dirty Conditions,false
+Lot Condition,Sanitation & Cleanliness,Dirty Conditions,false
+Graffiti,Sanitation & Cleanliness,Graffiti,false
+Illegal Posting,Sanitation & Cleanliness,Graffiti,false
+Posting Advertisement,Sanitation & Cleanliness,Graffiti,false
+Illegal Dumping,Sanitation & Cleanliness,Illegal Dumping,false
+Adopt-A-Basket,Sanitation & Cleanliness,Litter Baskets,false
+Litter Basket Complaint,Sanitation & Cleanliness,Litter Baskets,false
+Litter Basket Request,Sanitation & Cleanliness,Litter Baskets,false
+Recycling Basket Complaint,Sanitation & Cleanliness,Litter Baskets,false
+Street Sweeping Complaint,Sanitation & Cleanliness,Street Cleaning,true
+Bridge Condition,Streets & Sidewalks,Roadway,true
+DEP Highway Condition,Streets & Sidewalks,Roadway,true
+DEP Street Condition,Streets & Sidewalks,Roadway,true
+Highway Condition,Streets & Sidewalks,Roadway,true
+Street Condition,Streets & Sidewalks,Roadway,true
+Tunnel Condition,Streets & Sidewalks,Roadway,false
+Curb Condition,Streets & Sidewalks,Sidewalk,false
+DEP Sidewalk Condition,Streets & Sidewalks,Sidewalk,true
+Sidewalk Condition,Streets & Sidewalks,Sidewalk,true
+Highway Sign - Damaged,Streets & Sidewalks,Signage,true
+Highway Sign - Dangling,Streets & Sidewalks,Signage,true
+Highway Sign - Missing,Streets & Sidewalks,Signage,true
+Street Sign - Damaged,Streets & Sidewalks,Signage,true
+Street Sign - Dangling,Streets & Sidewalks,Signage,true
+Street Sign - Missing,Streets & Sidewalks,Signage,true
+Snow or Ice,Streets & Sidewalks,Snow & Ice,true
+Broken Parking Meter,Streets & Sidewalks,Street Furniture,false
+Municipal Parking Facility,Streets & Sidewalks,Street Furniture,false
+Street Light Condition,Streets & Sidewalks,Street Lighting,false
+Obstruction,Streets & Sidewalks,Street Use,false
+Outdoor Dining,Streets & Sidewalks,Street Use,false
+Scaffold Safety,Streets & Sidewalks,Street Use,false
+Traffic Signal Condition,Streets & Sidewalks,Traffic Control,false
+Abandoned Bike,Transportation & Vehicles,Abandoned Vehicles,false
+Abandoned Vehicle,Transportation & Vehicles,Abandoned Vehicles,false
+Derelict Vehicles,Transportation & Vehicles,Abandoned Vehicles,false
+Bike Rack,Transportation & Vehicles,Micromobility,false
+Bike/Roller/Skate,Transportation & Vehicles,Micromobility,false
+Bike/Roller/Skate Chronic,Transportation & Vehicles,Micromobility,false
+E-Scooter,Transportation & Vehicles,Micromobility,false
+Blocked Driveway,Transportation & Vehicles,Parking,false
+Illegal Parking,Transportation & Vehicles,Parking,false
+Traffic,Transportation & Vehicles,Traffic,false
+Bus Stop Shelter Complaint,Transportation & Vehicles,Transit,false
+Bus Stop Shelter Placement,Transportation & Vehicles,Transit,false
+Ferry Complaint,Transportation & Vehicles,Transit,false
+Ferry Inquiry,Transportation & Vehicles,Transit,false
+Dry Weather Discharge,Water & Sewer,Drainage,false
+Green Infrastructure,Water & Sewer,Drainage,true
+Standing Water,Water & Sewer,Drainage,true
+Indoor Sewage,Water & Sewer,Sewer,true
+Sewer,Water & Sewer,Sewer,true
+Sewer Maintenance,Water & Sewer,Sewer,true
+Plant,Water & Sewer,Treatment Plant,false
+Waste Water Treatment Plant,Water & Sewer,Treatment Plant,false
+Building Drinking Water Tank,Water & Sewer,Water Quality,false
+Drinking Water,Water & Sewer,Water Quality,false
+Water Quality,Water & Sewer,Water Quality,false
+Water Conservation,Water & Sewer,Water Supply,false
+Water Maintenance,Water & Sewer,Water Supply,true
+Water System,Water & Sewer,Water Supply,true

@@ -1,0 +1,40 @@
+# Deliberately outside k8s/overlays/prod so ArgoCD never syncs it: this is a development
+# convenience, not part of the deployed system.
+#
+# It exists because the local machine cannot run this stack at all — Python is 3.8 and dbt-core
+# requires 3.9 or newer, and there is no Node for Evidence. Iterating through build-and-deploy
+# would cost five minutes per model edit. Here, `kubectl cp` plus `kubectl exec` makes it seconds.
+#
+# Scale to 0 when not actively developing; it holds capacity on the single base node.
+#   kubectl -n p03-elt scale deploy/p03-dev --replicas=0
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: p03-dev
+  namespace: p03-elt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: p03-dev
+  template:
+    metadata:
+      labels:
+        app: p03-dev
+    spec:
+      serviceAccountName: dbt
+      priorityClassName: pipeline-default
+      containers:
+        - name: tools
+          image: us-central1-docker.pkg.dev/varun-data-engineering/data-platform/p03-elt:dev
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          envFrom:
+            - configMapRef:
+                name: p03-elt-config
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1Gi
+            limits:
+              memory: 2Gi

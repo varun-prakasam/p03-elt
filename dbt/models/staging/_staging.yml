@@ -1,0 +1,63 @@
+version: 2
+
+models:
+  - name: stg_311_requests
+    description: >
+      311 service requests, renamed and recast. Socrata returns every value as a JSON string, so
+      this is where latitude becomes a float and the literal 'Unspecified' borough becomes null.
+      No joins and no business logic.
+    columns:
+      - name: request_id
+        description: 311's own unique_key, carried through unchanged.
+        tests:
+          - unique
+          - not_null
+      - name: created_at
+        tests:
+          - not_null
+      - name: borough_name
+        description: Null where 311 recorded no borough. Never the string 'Unspecified'.
+        tests:
+          - accepted_values:
+              values: ['BRONX', 'BROOKLYN', 'MANHATTAN', 'QUEENS', 'STATEN ISLAND']
+              # A new value here means 311 changed its vocabulary, which is worth knowing about
+              # but is not a reason to fail the nightly build and leave the dashboard stale.
+              config:
+                severity: warn
+      - name: latitude
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 40.4
+              max_value: 41.0
+              row_condition: "latitude is not null"
+              config:
+                severity: warn
+      - name: longitude
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: -74.3
+              max_value: -73.6
+              row_condition: "longitude is not null"
+              config:
+                severity: warn
+
+  - name: stg_weather_daily
+    description: >
+      Daily NYC observations with metric values converted to the units the dashboard reports in.
+    columns:
+      - name: weather_date
+        tests:
+          - unique
+          - not_null
+      - name: temp_mean_f
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: -20
+              max_value: 115
+              row_condition: "temp_mean_f is not null"
+      - name: precipitation_in
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 20
+              row_condition: "precipitation_in is not null"

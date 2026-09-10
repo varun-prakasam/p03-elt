@@ -1,0 +1,237 @@
+version: 2
+
+# The intermediate layer had no tests at all, which is the wrong way round: these two models carry
+# almost every derivation in the project — the category mapping, the band thresholds, the resolution
+# measures and the timezone conversion — while the marts above them mostly select and join.
+#
+# Most of what follows is unit tests rather than data tests. A data test asks "is today's data
+# sane"; it cannot tell you whether a `<` should have been `<=`, because real data rarely lands
+# exactly on a boundary and the totals reconcile either way. A unit test pins the logic with fixed
+# inputs and fails the moment someone edits a threshold.
+
+models:
+  - name: int_weather_banded
+    description: >
+      Assigns each observed day to a temperature, precipitation and snowfall band. The thresholds
+      live in macros/weather_bands.sql so this and dim_weather_band cannot drift apart.
+    columns:
+      - name: weather_date
+        description: One row per observed day. The grain of the model.
+        tests: [unique, not_null]
+      - name: weather_band_key
+        description: >
+          Surrogate key over the three bands. The relationships test is what catches the two
+          consumers of the band macros drifting apart: this model assigns a band to each day and
+          dim_weather_band enumerates every band, so a key here with no member there means the
+          thresholds and the enumeration no longer agree.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_weather_band')
+              field: weather_band_key
+      - name: temp_band
+        tests: [not_null]
+      - name: precip_band
+        tests: [not_null]
+      - name: snow_band
+        tests: [not_null]
+
+  - name: int_requests_categorised
+    description: >
+      Attaches the seed category hierarchy and derives the resolution measures. This is where an
+      unmapped complaint type becomes 'Unmapped' rather than vanishing, and where a request's local
+      calendar day is fixed.
+    columns:
+      - name: request_id
+        description: Carried through from staging; the grain is unchanged by the join.
+        tests: [unique, not_null]
+      - name: created_at
+        tests: [not_null]
+      - name: created_date_local
+        description: >
+          The New York calendar day, not the UTC one. Every daily aggregate keys off this, so a
+          request logged at 20:00 EST must count as that day and not the next.
+        tests: [not_null]
+      - name: service_category
+        description: Never null — an unmapped complaint type routes to 'Unmapped'.
+        tests: [not_null]
+      - name: service_subcategory
+        tests: [not_null]
+      - name: is_weather_sensitive
+        tests: [not_null]
+      - name: is_unmapped_complaint_type
+        tests: [not_null]
+      - name: is_closed
+        tests: [not_null]
+      - name: is_implausible_resolution
+        description: >
+          Flags rows closed before they opened and rows open more than a year. They stay in the
+          fact for completeness and are excluded from the reported measure.
+        tests: [not_null]
+      - name: resolution_hours
+        description: Null for open requests. An open request has no resolution time.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: -8760
+              max_value: 200000
+              row_condition: "resolution_hours is not null"
+
+unit_tests:
+  # -- weather bands ---------------------------------------------------------------------------
+  # Each ladder is tested at every threshold and one step either side. A band built from `<`
+  # comparisons is off by one the moment someone reads a spec as inclusive, and nothing downstream
+  # notices: the counts still reconcile, the rows are simply in the wrong bucket, and the weather
+  # story quietly changes shape.
+
+  - name: temp_band_boundaries
+    model: int_weather_banded
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {weather_date: "2026-01-01", temp_mean_f: 31.9, precipitation_in: 0, snowfall_in: 0}
+          - {weather_date: "2026-01-02", temp_mean_f: 32.0, precipitation_in: 0, snowfall_in: 0}
+          - {weather_date: "2026-01-03", temp_mean_f: 49.9, precipitation_in: 0, snowfall_in: 0}
+          - {weather_date: "2026-01-04", temp_mean_f: 50.0, precipitation_in: 0, snowfall_in: 0}
+          - {weather_date: "2026-01-05", temp_mean_f: 69.9, precipitation_in: 0, snowfall_in: 0}
+          - {weather_date: "2026-01-06", temp_mean_f: 70.0, precipitation_in: 0, snowfall_in: 0}
+          - {weather_date: "2026-01-07", temp_mean_f: 84.9, precipitation_in: 0, snowfall_in: 0}
+          - {weather_date: "2026-01-08", temp_mean_f: 85.0, precipitation_in: 0, snowfall_in: 0}
+          - {weather_date: "2026-01-09", temp_mean_f: null, precipitation_in: 0, snowfall_in: 0}
+    expect:
+      rows:
+        - {weather_date: "2026-01-01", temp_band: "Freezing"}
+        - {weather_date: "2026-01-02", temp_band: "Cold"}
+        - {weather_date: "2026-01-03", temp_band: "Cold"}
+        - {weather_date: "2026-01-04", temp_band: "Mild"}
+        - {weather_date: "2026-01-05", temp_band: "Mild"}
+        - {weather_date: "2026-01-06", temp_band: "Warm"}
+        - {weather_date: "2026-01-07", temp_band: "Warm"}
+        - {weather_date: "2026-01-08", temp_band: "Hot"}
+        - {weather_date: "2026-01-09", temp_band: "Unknown"}
+
+  - name: precip_band_boundaries
+    description: >
+      'None' is an equality test on zero, not a range, so a trace of rain must fall into 'Light'
+      rather than collapsing into the dry bucket — the wet-weather comparison depends on it.
+    model: int_weather_banded
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {weather_date: "2026-02-01", temp_mean_f: 50, precipitation_in: 0.0,  snowfall_in: 0}
+          - {weather_date: "2026-02-02", temp_mean_f: 50, precipitation_in: 0.01, snowfall_in: 0}
+          - {weather_date: "2026-02-03", temp_mean_f: 50, precipitation_in: 0.09, snowfall_in: 0}
+          - {weather_date: "2026-02-04", temp_mean_f: 50, precipitation_in: 0.1,  snowfall_in: 0}
+          - {weather_date: "2026-02-05", temp_mean_f: 50, precipitation_in: 0.49, snowfall_in: 0}
+          - {weather_date: "2026-02-06", temp_mean_f: 50, precipitation_in: 0.5,  snowfall_in: 0}
+          - {weather_date: "2026-02-07", temp_mean_f: 50, precipitation_in: null, snowfall_in: 0}
+    expect:
+      rows:
+        - {weather_date: "2026-02-01", precip_band: "None"}
+        - {weather_date: "2026-02-02", precip_band: "Light"}
+        - {weather_date: "2026-02-03", precip_band: "Light"}
+        - {weather_date: "2026-02-04", precip_band: "Moderate"}
+        - {weather_date: "2026-02-05", precip_band: "Moderate"}
+        - {weather_date: "2026-02-06", precip_band: "Heavy"}
+        - {weather_date: "2026-02-07", precip_band: "Unknown"}
+
+  - name: snow_band_boundaries
+    model: int_weather_banded
+    given:
+      - input: ref('stg_weather_daily')
+        rows:
+          - {weather_date: "2026-03-01", temp_mean_f: 30, precipitation_in: 0, snowfall_in: 0.0}
+          - {weather_date: "2026-03-02", temp_mean_f: 30, precipitation_in: 0, snowfall_in: 0.1}
+          - {weather_date: "2026-03-03", temp_mean_f: 30, precipitation_in: 0, snowfall_in: 1.99}
+          - {weather_date: "2026-03-04", temp_mean_f: 30, precipitation_in: 0, snowfall_in: 2.0}
+          - {weather_date: "2026-03-05", temp_mean_f: 30, precipitation_in: 0, snowfall_in: null}
+    expect:
+      rows:
+        - {weather_date: "2026-03-01", snow_band: "None"}
+        - {weather_date: "2026-03-02", snow_band: "Light"}
+        - {weather_date: "2026-03-03", snow_band: "Light"}
+        - {weather_date: "2026-03-04", snow_band: "Significant"}
+        - {weather_date: "2026-03-05", snow_band: "Unknown"}
+
+  # -- categorisation --------------------------------------------------------------------------
+
+  - name: unmapped_complaint_types_survive_the_join
+    description: >
+      The left join is the whole point of this model. An inner join would silently drop every
+      request whose complaint type is not yet in the seed — and 311 adds types without notice, so
+      the loss would be invisible and permanent. Both rows must come through, one of them flagged.
+    model: int_requests_categorised
+    given:
+      - input: ref('stg_311_requests')
+        rows:
+          - {request_id: "1", created_at: "2026-01-15 12:00:00", closed_at: null, complaint_type: "HEAT/HOT WATER"}
+          - {request_id: "2", created_at: "2026-01-15 12:00:00", closed_at: null, complaint_type: "Brand New Programme"}
+      - input: ref('complaint_category_map')
+        rows:
+          - {complaint_type: "HEAT/HOT WATER", service_category: "Housing & Buildings", service_subcategory: "Heat & Hot Water", is_weather_sensitive: true}
+    expect:
+      rows:
+        - {request_id: "1", service_category: "Housing & Buildings", service_subcategory: "Heat & Hot Water", is_weather_sensitive: true,  is_unmapped_complaint_type: false}
+        - {request_id: "2", service_category: "Unmapped",            service_subcategory: "Unmapped",         is_weather_sensitive: false, is_unmapped_complaint_type: true}
+
+  # -- resolution measures ---------------------------------------------------------------------
+
+  - name: resolution_is_null_while_a_request_is_open
+    description: >
+      Measuring an open request against now() would make every unresolved backlog item look like a
+      fast close at the moment of measurement, and the backlog would disappear from the numbers.
+    model: int_requests_categorised
+    given:
+      - input: ref('stg_311_requests')
+        rows:
+          - {request_id: "open",   created_at: "2026-01-01 00:00:00", closed_at: null,                  complaint_type: "X"}
+          - {request_id: "closed", created_at: "2026-01-01 00:00:00", closed_at: "2026-01-03 00:00:00", complaint_type: "X"}
+      - input: ref('complaint_category_map')
+        rows: []
+    expect:
+      rows:
+        - {request_id: "open",   is_closed: false, resolution_hours: null, resolution_days: null}
+        - {request_id: "closed", is_closed: true,  resolution_hours: 48,   resolution_days: 2.0}
+
+  - name: implausible_resolutions_are_flagged_not_dropped
+    description: >
+      The one-year rule is measured in hours because the reported measure is in hours. Measuring it
+      in days lets a request open for 365.9 days pass the flag and then fail the downstream range
+      test on its 8,781 hours — a failure that looks like a broken test rather than bad data.
+      The 8760-hour row is the boundary and must NOT be flagged.
+    model: int_requests_categorised
+    given:
+      - input: ref('stg_311_requests')
+        rows:
+          - {request_id: "backwards", created_at: "2026-01-10 00:00:00", closed_at: "2026-01-01 00:00:00", complaint_type: "X"}
+          - {request_id: "exactly",   created_at: "2025-01-01 00:00:00", closed_at: "2025-12-31 00:00:00", complaint_type: "X"}
+          - {request_id: "over",      created_at: "2024-01-01 00:00:00", closed_at: "2025-06-01 00:00:00", complaint_type: "X"}
+          - {request_id: "normal",    created_at: "2026-01-01 00:00:00", closed_at: "2026-01-02 00:00:00", complaint_type: "X"}
+      - input: ref('complaint_category_map')
+        rows: []
+    expect:
+      rows:
+        - {request_id: "backwards", is_implausible_resolution: true}
+        - {request_id: "exactly",   is_implausible_resolution: false}
+        - {request_id: "over",      is_implausible_resolution: true}
+        - {request_id: "normal",    is_implausible_resolution: false}
+
+  - name: local_calendar_day_is_new_york_not_utc
+    description: >
+      Every daily aggregate keys off created_date_local. A request logged at 20:00 in New York is
+      01:00 the next day in UTC, so taking date(created_at) without the zone shifts a slice of the
+      evening into tomorrow — a systematic error that no total would reveal, because the rows are
+      all still there, just on the wrong day.
+    model: int_requests_categorised
+    given:
+      - input: ref('stg_311_requests')
+        rows:
+          # 2026-01-16 01:00 UTC is 2026-01-15 20:00 EST.
+          - {request_id: "evening", created_at: "2026-01-16 01:00:00", closed_at: null, complaint_type: "X"}
+          # 2026-01-15 12:00 UTC is 2026-01-15 07:00 EST — same day either way, as a control.
+          - {request_id: "midday",  created_at: "2026-01-15 12:00:00", closed_at: null, complaint_type: "X"}
+      - input: ref('complaint_category_map')
+        rows: []
+    expect:
+      rows:
+        - {request_id: "evening", created_date_local: "2026-01-15"}
+        - {request_id: "midday",  created_date_local: "2026-01-15"}

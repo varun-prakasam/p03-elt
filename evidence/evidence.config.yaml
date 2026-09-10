@@ -1,0 +1,12 @@
+appearance:
+  default: light
+  switcher: true
+
+plugins:
+  components:
+    "@evidence-dev/core-components": {}
+  datasources:
+    # Only BigQuery. The stock template installs a dozen connectors; each one is an npm dependency
+    # that Cloud Build downloads and compiles on every image build for a database this project
+    # will never touch.
+    "@evidence-dev/bigquery": {}

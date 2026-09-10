@@ -1,0 +1,82 @@
+# CI for p03-elt.
+#
+# Both jobs run without any GCP credential, which is the point — they can run on a fork, on a pull
+# request from anyone, and before the repository has a Workload Identity binding at all. Anything
+# that needs to reach BigQuery (dbt build, dbt source freshness) belongs in the nightly CronJob,
+# where the cluster already provides an identity, not here.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  elt:
+    name: elt unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # dbt-core 1.9 supports 3.9-3.12 and the image builds on 3.12; matching it here means a
+          # failure in CI is a real failure rather than a version difference.
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -r elt/requirements-dev.txt
+
+      - name: Test with coverage
+        # .coveragerc pins branch coverage and fail_under = 100, so this step is the gate. Statement
+        # coverage alone would have called the retry loop covered while its exhaustion path fell
+        # through returning None — the kind of gap that ends an extract early and silently.
+        run: |
+          coverage run -m unittest discover -s elt/tests -t . -v
+          coverage report
+
+      - name: Coverage summary
+        if: always()
+        run: coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+  dbt:
+    name: dbt parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -r dbt/requirements.txt
+
+      - name: Install packages
+        working-directory: dbt
+        run: dbt deps
+
+      - name: Parse
+        working-directory: dbt
+        # Builds the full manifest: every ref, source, macro, test, unit test and exposure has to
+        # resolve. It catches a renamed model or a broken ref without touching the warehouse,
+        # because parsing never opens a connection — the oauth profile is only read, not used.
+        #
+        # It does not *run* anything. dbt unit tests execute SQL, so they need a warehouse and an
+        # identity; they run in the nightly CronJob as part of `dbt build`, which is also where the
+        # data tests run. This job's job is to prove the project still compiles.
+        env:
+          DBT_PROFILES_DIR: .
+        run: dbt parse --no-partial-parse

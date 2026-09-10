@@ -1,0 +1,37 @@
+FROM python:3.11-slim
+
+# git is needed by `dbt deps` to resolve packages that resolve to git sources.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# dlt and dbt cannot coexist in one environment: both pin google-cloud-bigquery and pyarrow, to
+# ranges that do not intersect. Two virtualenvs sidesteps the resolver entirely and costs only
+# image size.
+RUN python -m venv /opt/dlt-venv && python -m venv /opt/dbt-venv
+
+COPY elt/requirements.txt /tmp/elt-requirements.txt
+RUN /opt/dlt-venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/dlt-venv/bin/pip install --no-cache-dir -r /tmp/elt-requirements.txt
+
+COPY dbt/requirements.txt /tmp/dbt-requirements.txt
+RUN /opt/dbt-venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/dbt-venv/bin/pip install --no-cache-dir -r /tmp/dbt-requirements.txt
+
+WORKDIR /app
+COPY elt/ /app/elt/
+COPY dbt/ /app/dbt/
+COPY docker/run-pipeline.sh /app/run-pipeline.sh
+RUN chmod +x /app/run-pipeline.sh
+
+# Vendored at build time, not at run time. Resolving packages nightly means a dbt-hub outage takes
+# the pipeline down for a reason that has nothing to do with this project; package-lock.yml pins
+# the versions, so doing it here makes every run reproduce the image it was built from.
+RUN cd /app/dbt && /opt/dbt-venv/bin/dbt deps
+
+# dlt writes working state here. The pod is stateless — durable pipeline state lives in BigQuery.
+ENV DLT_DATA_DIR=/tmp/dlt
+ENV DBT_PROFILES_DIR=/app/dbt
+ENV PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["/app/run-pipeline.sh"]

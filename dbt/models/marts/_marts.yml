@@ -1,0 +1,330 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Generated calendar, 2023 through one year ahead, with the NYC heat-season flag.
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+      - name: is_heat_season
+        description: >
+          True between October 1 and May 31, when NYC law requires residential heat. This is a
+          statutory step function, not a weather effect, and any analysis of HEAT/HOT WATER
+          volume that ignores it will misattribute the seasonal jump to temperature.
+          Its exact boundaries are asserted in tests/assert_heat_season_matches_the_statute.sql.
+        tests: [not_null]
+      - name: season
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Winter', 'Spring', 'Summer', 'Autumn']
+      - name: is_weekend
+        tests: [not_null]
+      - name: day_of_week
+        description: BigQuery's dayofweek, 1 = Sunday through 7 = Saturday.
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between: {min_value: 1, max_value: 7}
+      - name: calendar_year
+        tests: [not_null]
+      - name: month_start_date
+        tests: [not_null]
+      - name: week_start_date
+        tests: [not_null]
+
+  - name: dim_complaint_category
+    description: Seed-driven hierarchy over 311's raw complaint vocabulary, plus an 'Unmapped' member.
+    columns:
+      - name: complaint_category_key
+        tests: [unique, not_null]
+      - name: complaint_type
+        tests: [unique, not_null]
+      - name: service_category
+        tests: [not_null]
+      - name: service_subcategory
+        tests: [not_null]
+      - name: is_weather_sensitive
+        description: >
+          Seed-driven. Drives which complaint types the weather page reports on, so a null here
+          would quietly drop a category from that analysis rather than showing it as zero.
+        tests: [not_null]
+
+  - name: dim_agency
+    description: One row per city agency, labelled with its most recently observed full name.
+    columns:
+      - name: agency_key
+        tests: [unique, not_null]
+      - name: agency_code
+        tests: [unique, not_null]
+      - name: agency_name
+        tests: [not_null]
+      - name: is_known_agency
+        description: False only for the synthetic UNKNOWN member the fact falls back to.
+        tests: [not_null]
+
+  - name: dim_location
+    description: The five boroughs plus an explicit UNKNOWN member. Fixed, not derived from data.
+    columns:
+      - name: location_key
+        tests: [unique, not_null]
+      - name: borough_name
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              values: ['BRONX', 'BROOKLYN', 'MANHATTAN', 'QUEENS', 'STATEN ISLAND', 'UNKNOWN']
+      - name: borough_label
+        description: Title case, for display. The key stays upper case as 311 emits it.
+        tests: [unique, not_null]
+      # Scoped to the real boroughs. The synthetic UNKNOWN member exists so that requests with no
+      # recorded borough still have a dimension row to point at, and it has no county — asserting
+      # not_null across the whole table would be asserting something false about correct data.
+      - name: county_name
+        description: Null on the UNKNOWN member, which is not a place.
+        tests:
+          - not_null:
+              config:
+                where: "is_known_borough"
+      - name: county_fips
+        tests:
+          - not_null:
+              config:
+                where: "is_known_borough"
+      - name: is_known_borough
+        tests: [not_null]
+
+  - name: dim_weather_band
+    description: >
+      Junk dimension — the cross product of temperature, precipitation and snowfall bands. Weather
+      is a driver of resolution time here, not the subject of the analysis.
+    columns:
+      - name: weather_band_key
+        tests: [unique, not_null]
+      # This dimension is the canonical enumeration of the bands — it is built by unnesting the
+      # macros directly — so the literal lists belong here rather than being repeated against every
+      # column that happens to hold a band. Everything downstream reaches the same guarantee through
+      # a relationships test on weather_band_key, and the thresholds themselves are pinned by unit
+      # tests on int_weather_banded.
+      - name: temp_band
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Freezing', 'Cold', 'Mild', 'Warm', 'Hot', 'Unknown']
+      - name: precip_band
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['None', 'Light', 'Moderate', 'Heavy', 'Unknown']
+      - name: snow_band
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['None', 'Light', 'Significant', 'Unknown']
+      - name: weather_band_label
+        tests: [not_null]
+      - name: is_temperature_extreme
+        tests: [not_null]
+      - name: is_severe_precipitation
+        tests: [not_null]
+
+  - name: fct_service_requests
+    description: >
+      Accumulating snapshot. One row per service request, updated in place as it moves from
+      created to acknowledged to closed, carrying the lag measures between those milestones.
+      Partitioned by month on created_date_local and clustered by borough and category.
+    columns:
+      - name: request_id
+        tests: [unique, not_null]
+      - name: created_at
+        tests: [not_null]
+      - name: complaint_category_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_complaint_category')
+              field: complaint_category_key
+      - name: agency_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_agency')
+              field: agency_key
+      - name: location_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_location')
+              field: location_key
+      - name: weather_band_key
+        description: >
+          Falls back to the all-Unknown band when no weather was observed for the day. Open-Meteo's
+          archive trails by about five days, so the most recent requests legitimately have none.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_weather_band')
+              field: weather_band_key
+      - name: reportable_resolution_hours
+        description: >
+          Resolution time with implausible rows excluded — those closed before they were opened and
+          those open more than a year. This is the measure the dashboard reports.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 8760
+              row_condition: "reportable_resolution_hours is not null"
+      - name: created_date_local
+        description: >
+          The New York calendar day. Partition column, and the join key to dim_date — so a null
+          would silently drop the row from every daily aggregate.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      # The four booleans below all gate logic somewhere downstream: is_closed decides whether a
+      # request contributes to a service level, is_implausible_resolution decides whether its
+      # duration is reportable, is_weather_sensitive selects the weather page's population, and
+      # is_unmapped_complaint_type feeds the seed-coverage warning. A null in any of them makes a
+      # `where` clause quietly false rather than raising anything.
+      - name: is_closed
+        tests: [not_null]
+      - name: is_implausible_resolution
+        tests: [not_null]
+      - name: is_weather_sensitive
+        tests: [not_null]
+      - name: is_unmapped_complaint_type
+        tests: [not_null]
+      - name: borough_name
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_location')
+              field: borough_name
+      - name: service_category
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_complaint_category')
+              field: service_category
+      - name: agency_code
+        tests: [not_null]
+      - name: status
+        description: >
+          311's own vocabulary, carried through unchanged. Warn rather than error — the city adds
+          statuses occasionally and that is worth noticing, not worth a stale dashboard.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Closed', 'Open', 'Pending', 'In Progress', 'Assigned', 'Started',
+                       'Unspecified', 'Email Sent', 'Draft', 'Closed - Testing']
+              config:
+                severity: warn
+
+  - name: fct_daily_service_levels
+    description: >
+      Periodic snapshot at date x borough x category, over a dense spine so days with no activity
+      plot as zero rather than vanishing. This is the table the Evidence dashboard reads.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - service_date
+            - borough_name
+            - service_category
+    columns:
+      - name: daily_service_level_key
+        tests: [unique, not_null]
+      - name: service_date
+        tests: [not_null]
+      - name: requests_created
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+      - name: pct_closed_within_3_days
+        description: Null when nothing closed that day — an absence is not a 0% service level.
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 1
+              row_condition: "pct_closed_within_3_days is not null"
+      - name: borough_name
+        tests: [not_null]
+      - name: service_category
+        tests: [not_null]
+      # Both keys were unguarded. This is the table Evidence reads, and it is built from a spine
+      # cross-join rather than by joining the fact, so a key that matches no dimension member would
+      # not fail anything here — it would just render as a blank series on the dashboard.
+      - name: location_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_location')
+              field: location_key
+      - name: weather_band_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_weather_band')
+              field: weather_band_key
+      # Counts over a dense spine: zero on a quiet day, never null and never negative.
+      - name: requests_closed
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between: {min_value: 0}
+      - name: closed_within_1_day
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between: {min_value: 0}
+      - name: closed_within_3_days
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between: {min_value: 0}
+      - name: closures_measured
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between: {min_value: 0}
+      # Left null on a day with no closures, deliberately. The bound is the same one the fact's
+      # reportable measure carries, because these are averages of that column.
+      - name: avg_resolution_hours
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 8760
+              row_condition: "avg_resolution_hours is not null"
+      - name: median_resolution_hours
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 8760
+              row_condition: "median_resolution_hours is not null"
+      - name: p90_resolution_hours
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 8760
+              row_condition: "p90_resolution_hours is not null"
+
+snapshots:
+  - name: snp_request_status
+    description: >
+      Type 2 history of request status, scoped to requests still open or recently closed.
+    tests:
+      # The grain of an SCD2 table is key plus validity start. A duplicate here means a snapshot ran
+      # twice against the same state and split one version into two, which quietly double-counts
+      # any point-in-time query.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [request_id, dbt_valid_from]
+    columns:
+      - name: dbt_scd_id
+        tests: [unique, not_null]
+      - name: request_id
+        tests: [not_null]
+      - name: status
+        description: The tracked attribute. A null would register as a status change to nothing.
+        tests: [not_null]
+      - name: dbt_valid_from
+        tests: [not_null]
+      - name: dbt_valid_to
+        description: Null on the current version of each request. Asserted to be unique per request
+          in tests/assert_snapshot_has_one_current_version.sql.

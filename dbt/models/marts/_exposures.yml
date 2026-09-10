@@ -1,0 +1,28 @@
+version: 2
+
+exposures:
+  - name: nyc_311_service_levels
+    label: NYC 311 Service Levels
+    type: dashboard
+    maturity: high
+    url: https://api-p03-elt-995355741205.us-central1.run.app
+
+    description: >
+      The Evidence dashboard. Declaring it here is what makes the lineage graph run all the way
+      from the Socrata API to the published chart rather than stopping at the marts — so
+      `dbt ls --select +exposure:nyc_311_service_levels` answers "what breaks if this model
+      changes", which is the question that actually matters before touching a model.
+
+    owner:
+      name: Varun Prakasam
+      email: varun.prakasam.11@gmail.com
+
+    depends_on:
+      - ref('fct_daily_service_levels')
+      - ref('fct_service_requests')
+      - ref('dim_date')
+      - ref('dim_agency')
+      - ref('dim_location')
+      - ref('dim_complaint_category')
+      - ref('dim_weather_band')
+      - source('p03_raw', '_dlt_loads')

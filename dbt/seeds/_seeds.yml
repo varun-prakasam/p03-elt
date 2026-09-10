@@ -1,0 +1,38 @@
+version: 2
+
+seeds:
+  - name: complaint_category_map
+    description: >
+      Hand-maintained hierarchy over 311's raw complaint_type vocabulary. The raw values are a mess
+      of inconsistent casing and agency-specific jargon — HPD shouts "HEAT/HOT WATER" while DOT
+      writes "Street Condition" — and there is no official grouping published anywhere. This seed
+      is that grouping, and it is deliberately version-controlled rather than derived, because the
+      choice of what counts as one category is an analytical decision, not a data fact.
+
+      Built from the 197 distinct complaint types present across the 24-month backfill window.
+      New types appear as the city adds programmes; int_requests_categorised routes anything
+      unmapped to 'Unmapped' and a test flags it.
+
+    config:
+      column_types:
+        complaint_type: STRING
+        service_category: STRING
+        service_subcategory: STRING
+        is_weather_sensitive: BOOLEAN
+
+    columns:
+      - name: complaint_type
+        description: Raw value as it appears in 311, verbatim including casing.
+        tests: [unique, not_null]
+      - name: service_category
+        description: Top level of the hierarchy — the grain of the dashboard's category filter.
+        tests: [not_null]
+      - name: service_subcategory
+        tests: [not_null]
+      - name: is_weather_sensitive
+        description: >
+          Whether resolution time for this complaint type could plausibly be driven by weather —
+          heat and hot water, snow and ice, flooding, tree damage, encampments. This is the flag
+          that keeps the weather dimension honest: it marks where a weather effect is a real
+          hypothesis rather than a coincidence to be mined.
+        tests: [not_null]

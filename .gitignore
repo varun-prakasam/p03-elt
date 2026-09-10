@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+# dlt and dbt pin incompatible google-cloud-bigquery and pyarrow ranges, so each gets its own
+# environment locally, mirroring the two virtualenvs inside the container image.
+.venv-dlt/
+.venv-dbt/
+.python-version
+
+# dlt keeps pipeline working state and any local secrets here. Destination state lives in
+# BigQuery, so nothing here is worth keeping.
+.dlt/secrets.toml
+~/.dlt/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+.user.yml
+
+# Coverage output. The threshold lives in .coveragerc, which is committed; this is just the run.
+.coverage
+htmlcov/
+
+# Evidence
+evidence/node_modules/
+evidence/.evidence/
+evidence/build/
+
+# Never commit credentials. The platform authenticates through Workload Identity and there is no
+# key file anywhere in this portfolio.
+*.json.key
+service-account*.json

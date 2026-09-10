@@ -1,0 +1,17 @@
+# Keeps the source tarball uploaded to Cloud Build small. .gitignore is not consulted
+# automatically once this file exists.
+.git/
+.gitignore
+__pycache__/
+*.pyc
+.venv/
+.venv-dlt/
+.venv-dbt/
+evidence/node_modules/
+evidence/.evidence/
+evidence/build/
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+docs/
+k8s/

@@ -1,0 +1,27 @@
+{
+  "name": "p03-elt-dashboard",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "sources": "evidence sources",
+    "dev": "evidence dev --open /",
+    "build": "evidence build"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=7.0.0"
+  },
+  "_comment_typescript": "Pinned to 5.x. Nothing here imports TypeScript, but svelte2tsx declares it as a peer at ^4.9.4 || ^5.0.0 while ts-node asks only for >=2.7 — so npm resolves TypeScript 7, svelte2tsx rejects it, and the whole install fails. The override forces one version both accept.",
+  "dependencies": {
+    "@evidence-dev/bigquery": "^2.0.12",
+    "@evidence-dev/core-components": "^5.4.2",
+    "@evidence-dev/evidence": "^40.1.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "axios": "^1.7.4",
+    "typescript": "^5.4.5"
+  }
+}

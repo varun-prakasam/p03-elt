@@ -1,0 +1,7 @@
+# Test-only dependencies. Deliberately not in requirements.txt: that file defines the loader image,
+# and a test runner has no business shipping to production alongside the credential it runs under.
+#
+# The tests themselves need nothing beyond the standard library — unittest and unittest.mock — so
+# this is only the coverage gate.
+-r requirements.txt
+coverage>=7.5,<8

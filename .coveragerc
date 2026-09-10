@@ -1,0 +1,22 @@
+# Coverage for the extract-load package. dbt has its own tests and its own runner.
+#
+# branch = True on purpose. Statement coverage alone would call `if backfill:` covered after a
+# single run through the true side, which is precisely the kind of gap that let the backfill and the
+# daily path diverge in behaviour without any test noticing.
+
+[run]
+source = elt
+branch = True
+omit =
+    elt/tests/*
+
+[report]
+# The suite covers every line and every branch today, so anything less is a regression rather than
+# a target to work towards. Kept at 100 deliberately: this package is small, has no UI and no
+# framework glue, and its failure mode is silently loading the wrong data.
+fail_under = 100
+show_missing = True
+skip_covered = False
+
+exclude_lines =
+    pragma: no cover

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: p03-elt-config
+  namespace: p03-elt
+data:
+  GCP_PROJECT_ID: varun-data-engineering
+  # dlt and the BigQuery client both read this to pick a project when using default credentials.
+  GOOGLE_CLOUD_PROJECT: varun-data-engineering
+  BQ_LOCATION: us-central1
+  P03_RAW_DATASET: p03_raw
+
+  # Only consulted on the very first run, when no cursor exists yet.
+  P03_BACKFILL_MONTHS: "24"
+
+  # Re-read windows that make late-arriving data land correctly.
+  P03_UPDATE_LOOKBACK_DAYS: "30"
+  P03_WEATHER_LOOKBACK_DAYS: "14"

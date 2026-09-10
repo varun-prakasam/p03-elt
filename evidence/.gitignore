@@ -1,0 +1,11 @@
+.evidence/template
+.evidence/meta
+.svelte-kit
+build
+node_modules
+static/data
+# Pulled from the artifacts bucket at build time, not authored here.
+static/dbt-docs
+*.options.yaml
+.env
+.DS_Store

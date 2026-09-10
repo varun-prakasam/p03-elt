@@ -1,0 +1,4 @@
+# Installed into /opt/dlt-venv, isolated from dbt. Both pin google-cloud-bigquery and pyarrow to
+# incompatible ranges, so they cannot share an environment.
+dlt[bigquery]>=1.4,<2
+requests>=2.32,<3

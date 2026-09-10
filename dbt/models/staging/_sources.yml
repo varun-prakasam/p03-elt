@@ -1,0 +1,60 @@
+version: 2
+
+sources:
+  - name: p03_raw
+    database: "{{ env_var('GCP_PROJECT_ID', 'varun-data-engineering') }}"
+    schema: p03_raw
+    description: >
+      Landed as-is by dlt. Nothing in this layer is cleaned, recast or renamed — every column is
+      whatever the API returned. dlt owns these tables; dbt only reads them.
+
+    tables:
+      - name: service_requests
+        description: One row per NYC 311 service request, merged on unique_key.
+        loaded_at_field: created_date
+        freshness:
+          # Socrata publishes 311 on roughly a two-day lag, so "fresh" here means the source itself
+          # is current, not that the pipeline ran. A warn at three days catches a stalled load
+          # without firing every time the city is slow.
+          warn_after: {count: 3, period: day}
+          error_after: {count: 7, period: day}
+        columns:
+          - name: unique_key
+            description: 311's own request identifier. Primary key of the merge.
+            tests: [unique, not_null]
+          - name: created_date
+            tests: [not_null]
+
+      - name: weather_daily
+        description: Daily NYC observations from Open-Meteo's archive endpoint.
+        # A date, not a timestamp, so it needs casting before dbt can measure age against it.
+        loaded_at_field: "timestamp(observed_on)"
+        freshness:
+          # The archive trails real time by about five days as observations settle, and the loader
+          # re-reads a fortnight each run. Eight days is therefore still healthy; a fortnight means
+          # the weather half of the pipeline has stopped and the driver dimension is going stale
+          # while the request counts carry on looking fine.
+          warn_after: {count: 8, period: day}
+          error_after: {count: 14, period: day}
+        columns:
+          - name: observed_on
+            tests: [unique, not_null]
+
+      - name: _dlt_loads
+        description: >
+          dlt's own load ledger. The dashboard reads max(inserted_at) from here for its freshness
+          banner, so a silently frozen pipeline is visible rather than misleading.
+        # The other two freshness checks ask whether the *source* is current. This one asks whether
+        # the pipeline ran at all, which is a different failure and the one the dashboard's banner
+        # is driven by — so it is worth asserting here rather than trusting the banner to be read.
+        loaded_at_field: inserted_at
+        freshness:
+          # The CronJob is daily. A day and a half allows for a late run without crying wolf.
+          warn_after: {count: 36, period: hour}
+          error_after: {count: 72, period: hour}
+        columns:
+          - name: load_id
+            tests: [unique, not_null]
+          - name: status
+            description: dlt writes 0 on a completed load.
+            tests: [not_null]

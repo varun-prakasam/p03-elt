@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: p03-elt
+  namespace: p03-elt
+spec:
+  # 09:00 UTC, roughly 05:00 in New York. NYC 311 trails by about two days and Open-Meteo's archive
+  # by about five, so the exact hour matters far less than running every day without overlap.
+  schedule: "0 9 * * *"
+  timeZone: Etc/UTC
+
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  # Without this, a cluster or scheduler outage that causes 100 missed windows stops the CronJob
+  # scheduling permanently, and it never recovers on its own.
+  startingDeadlineSeconds: 21600
+
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 5400
+      ttlSecondsAfterFinished: 172800
+      template:
+        metadata:
+          labels:
+            app: p03-elt
+        spec:
+          serviceAccountName: dbt
+          restartPolicy: Never
+          priorityClassName: pipeline-default
+          containers:
+            - name: elt
+              image: us-central1-docker.pkg.dev/varun-data-engineering/data-platform/p03-elt:latest
+              imagePullPolicy: Always
+              envFrom:
+                - configMapRef:
+                    name: p03-elt-config
+              resources:
+                # This pod orchestrates; BigQuery does the work. Sized to fit the base node
+                # alongside the platform's own daemonsets rather than trigger a second node.
+                requests:
+                  cpu: 300m
+                  memory: 1Gi
+                limits:
+                  memory: 2Gi

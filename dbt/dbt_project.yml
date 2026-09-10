@@ -1,0 +1,57 @@
+name: p03_elt
+version: "1.0.0"
+config-version: 2
+
+profile: p03_elt
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Late-arriving closures mean an incremental run cannot simply take rows newer than the high
+  # watermark. Each run re-reads this many days so status changes on older requests land.
+  incremental_lookback_days: 30
+
+  # How much of the request population the SCD2 snapshot tracks. Requests still open are always
+  # included; closed ones drop out once they are this old, because a request closed six weeks ago
+  # will not change again and copying it nightly buys nothing.
+  snapshot_window_days: 45
+
+  # The analytical window, and the reason the fact has a lower bound at all. It mirrors the
+  # extract's P03_BACKFILL_MONTHS: the created walk reaches back this far, so this is the period
+  # over which the data is actually complete.
+  #
+  # The updates walk ignores this by design — it returns any request whose resolution moved
+  # recently, including one opened in 2020 — so without the bound a handful of very old requests
+  # trail off the back of the fact. The daily mart's spine is dense across the fact's full date
+  # range, so those few rows stretch it over years of days with no volume, and every time series on
+  # the dashboard opens with a flatline that reads as "complaints exploded in late 2024".
+  analysis_window_months: 24
+
+models:
+  p03_elt:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: ephemeral
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts
+
+seeds:
+  p03_elt:
+    +schema: staging
+
+snapshots:
+  p03_elt:
+    # Spelled out in full, unlike models. Snapshot target_schema is taken literally rather than
+    # passed through generate_schema_name, so "marts" here would create a dataset called `marts`
+    # sitting outside the project's p03_ namespace.
+    +target_schema: p03_marts
